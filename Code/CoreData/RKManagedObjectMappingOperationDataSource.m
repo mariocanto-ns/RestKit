@@ -273,8 +273,12 @@ extern NSString * const RKObjectMappingNestingAttributeKeyName;
     
     // If we have found the entity identification attributes, try to find an existing instance to update
     if ([entityIdentifierAttributes count]) {
+//        NSSet *objects = [self.managedObjectCache managedObjectsWithEntity:entity
+//                                                           attributeValues:entityIdentifierAttributes
+//                                                    inManagedObjectContext:self.managedObjectContext];
         NSSet *objects = [self.managedObjectCache managedObjectsWithEntity:entity
                                                            attributeValues:entityIdentifierAttributes
+                                                                 predicate:entityMapping.complexPredicate
                                                     inManagedObjectContext:self.managedObjectContext];
         if (entityMapping.identificationPredicate) objects = [objects filteredSetUsingPredicate:entityMapping.identificationPredicate];
         if (entityMapping.identificationPredicateBlock) {

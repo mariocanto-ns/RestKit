@@ -105,6 +105,53 @@ static NSPredicate *RKPredicateWithSubstitutionVariablesForAttributeValues(NSDic
 
 - (NSSet *)managedObjectsWithEntity:(NSEntityDescription *)entity
                     attributeValues:(NSDictionary *)attributeValues
+                          predicate:(NSPredicate *)predicate
+             inManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
+{
+    NSAssert(entity, @"Cannot find existing managed object without a target class");
+    NSAssert(attributeValues, @"Cannot retrieve cached objects without attribute values to identify them with.");
+    NSAssert(managedObjectContext, @"Cannot find existing managed object with a nil context");
+    
+    if ([attributeValues count] == 0) return [NSSet set];
+    
+    if (!predicate) {
+        NSString *predicateCacheKey = RKPredicateCacheKeyForAttributeValues(attributeValues);
+        
+        __block NSPredicate *substitutionPredicate;
+        dispatch_sync(self.cacheQueue, ^{
+            substitutionPredicate = (self.predicateCache)[predicateCacheKey];
+        });
+        
+        NSDictionary *substitutionVariables = RKSubstitutionVariablesForAttributeValues(attributeValues);
+        
+        if (! substitutionPredicate) {
+            substitutionPredicate = RKPredicateWithSubstitutionVariablesForAttributeValues(attributeValues);
+            dispatch_barrier_async(self.cacheQueue, ^{
+                (self.predicateCache)[predicateCacheKey] = substitutionPredicate;
+            });
+        }
+        predicate = substitutionPredicate;
+    }
+    
+    
+    
+    NSFetchRequest *fetchRequest = [NSFetchRequest fetchRequestWithEntityName:[entity name]];
+    fetchRequest.predicate = [predicate predicateWithSubstitutionVariables:attributeValues];
+    __block NSError *error = nil;
+    __block NSArray *objects = nil;
+    [managedObjectContext performBlockAndWait:^{
+        objects = [managedObjectContext executeFetchRequest:fetchRequest error:&error];
+    }];
+    if (! objects) {
+        RKLogError(@"Failed to execute fetch request due to error: %@", error);
+    }
+    RKLogDebug(@"Found objects '%@' using fetchRequest '%@'", objects, fetchRequest);
+    
+    return [NSSet setWithArray:objects];
+}
+
+- (NSSet *)managedObjectsWithEntity:(NSEntityDescription *)entity
+                    attributeValues:(NSDictionary *)attributeValues
              inManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
 {
     NSAssert(entity, @"Cannot find existing managed object without a target class");

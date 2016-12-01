@@ -42,6 +42,19 @@
                     attributeValues:(NSDictionary *)attributeValues
              inManagedObjectContext:(NSManagedObjectContext *)managedObjectContext;
 
+/**
+ Returns all managed objects for a given entity with attributes whose names and values match the given dictionary in a given context.
+ 
+ @param entity The entity to retrieve managed objects for.
+ @param attributeValues A dictionary specifying the attribute criteria for retrieving managed objects.
+ @param predicate An optional predicate to be used instead of the default.
+ @param managedObjectContext The context to fetch the matching objects in.
+ */
+- (NSSet *)managedObjectsWithEntity:(NSEntityDescription *)entity
+                    attributeValues:(NSDictionary *)attributeValues
+                          predicate:(NSPredicate *)predicate
+             inManagedObjectContext:(NSManagedObjectContext *)managedObjectContext;
+
 ///---------------------------------------------------
 /// @name Handling Managed Object Change Notifications
 ///---------------------------------------------------

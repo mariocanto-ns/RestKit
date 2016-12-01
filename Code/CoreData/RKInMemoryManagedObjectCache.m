@@ -83,6 +83,60 @@ static dispatch_queue_t RKInMemoryManagedObjectCacheCallbackQueue(void)
 
 - (NSSet *)managedObjectsWithEntity:(NSEntityDescription *)entity
                     attributeValues:(NSDictionary *)attributeValues
+                          predicate:(NSPredicate *)predicate
+             inManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
+{
+    NSParameterAssert(entity);
+    NSParameterAssert(attributeValues);
+    NSParameterAssert(managedObjectContext);
+    
+    NSArray *attributes = [attributeValues allKeys];
+    [self.entityCache beginAccessing];
+    if (! [self.entityCache isEntity:entity cachedByAttributes:attributes]) {
+        RKLogInfo(@"Caching instances of Entity '%@' by attributes '%@'", entity.name, [attributes componentsJoinedByString:@", "]);
+        dispatch_semaphore_t semaphore = dispatch_semaphore_create(0);
+        [self.entityCache cacheObjectsForEntity:entity byAttributes:attributes completion:^{
+            dispatch_semaphore_signal(semaphore);
+        }];
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        
+        RKEntityByAttributeCache *attributeCache = [self.entityCache attributeCacheForEntity:entity attributes:attributes];
+        
+        // Fetch any pending objects and add them to the cache
+        NSFetchRequest *fetchRequest = [NSFetchRequest new];
+        fetchRequest.entity = entity;
+        fetchRequest.includesPendingChanges = YES;
+        fetchRequest.predicate = predicate;
+        
+        [managedObjectContext performBlockAndWait:^{
+            NSError *error = nil;
+            NSArray *objects = nil;
+            objects = [managedObjectContext executeFetchRequest:fetchRequest error:&error];
+            if (objects) {
+                [attributeCache addObjects:[NSSet setWithArray:objects] completion:^{
+                    dispatch_semaphore_signal(semaphore);
+                }];
+            } else {
+                RKLogError(@"Fetched pre-loading existing managed objects with error: %@", error);
+                dispatch_semaphore_signal(semaphore);
+            }
+        }];
+        dispatch_semaphore_wait(semaphore, DISPATCH_TIME_FOREVER);
+        
+#if !OS_OBJECT_USE_OBJC
+        dispatch_release(semaphore);
+#endif
+        
+        RKLogTrace(@"Cached %ld objects", (long)[attributeCache count]);
+    }
+    
+    NSSet *result = [self.entityCache objectsForEntity:entity withAttributeValues:attributeValues inContext:managedObjectContext];
+    [self.entityCache endAccessing];
+    return result;
+}
+
+- (NSSet *)managedObjectsWithEntity:(NSEntityDescription *)entity
+                    attributeValues:(NSDictionary *)attributeValues
              inManagedObjectContext:(NSManagedObjectContext *)managedObjectContext
 {
     NSParameterAssert(entity);
