@@ -376,11 +376,9 @@ static char RKManagedObjectContextChangeMergingObserverAssociationKey;
 {
     [self.mainQueueManagedObjectContext performBlockAndWait:^{
         [self.mainQueueManagedObjectContext reset];
-        [self.mainQueueManagedObjectContext refreshAllObjects];
     }];
     [self.persistentStoreManagedObjectContext performBlockAndWait:^{
-        [self.persistentStoreManagedObjectContext reset];
-        [self.persistentStoreManagedObjectContext refreshAllObjects];
+        [self.persistentStoreManagedObjectContext reset];        
     }];
     
     NSError *localError;
