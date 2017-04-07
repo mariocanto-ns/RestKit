@@ -124,7 +124,7 @@ static NSPredicate *RKPredicateWithSubstitutionVariablesForAttributeValues(NSDic
         
         NSDictionary *substitutionVariables = RKSubstitutionVariablesForAttributeValues(attributeValues);
         
-        if (! substitutionPredicate) {
+        if (!substitutionPredicate) {
             substitutionPredicate = RKPredicateWithSubstitutionVariablesForAttributeValues(attributeValues);
             dispatch_barrier_async(self.cacheQueue, ^{
                 (self.predicateCache)[predicateCacheKey] = substitutionPredicate;
